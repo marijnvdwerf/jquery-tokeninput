@@ -600,7 +600,7 @@ $.TokenList = function (input, url_or_data_or_function, settings) {
 
                 // Select the first item, unless we allow the user to add new
                 // items.
-                if (settings.allowNewItems) {
+                if (settings.allowNewItems === false) {
                     if(index === 0) {
                         select_dropdown_item(this_li);
                     }
