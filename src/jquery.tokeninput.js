@@ -226,7 +226,7 @@ $.TokenList = function (input, url_or_data_or_function, settings) {
                   } else if (settings.allowNewItems) {
                     var new_item_name = $(this).val();
 
-                    if (new_item_name > 0) {
+                    if (new_item_name.length > 0) {
                       if (typeof(settings.newItemFilter) === "function") {
                         var addItem = function (name) {
                           _add_token(name, name);
