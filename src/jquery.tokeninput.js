@@ -11,7 +11,7 @@
 (function ($) {
 // Default settings
 var DEFAULT_SETTINGS = {
-    propertyToSearch: "first_name",
+    propertyToSearch: "name",
     hintText: "Type in a search term",
     noResultsText: "No results",
     searchingText: "Searching...",
@@ -29,6 +29,8 @@ var DEFAULT_SETTINGS = {
     prePopulate: null,
     processPrePopulate: false,
     animateDropdown: true,
+    resultsFormatter: function(item){ return "<li>" + item[this.propertyToSearch]+ "</li>" },
+    tokenFormatter: function(item) { return "<li><p>" + item[this.propertyToSearch] + "</p></li>" },
     onResult: null,
     onAdd: null,
     onDelete: null,
@@ -427,7 +429,8 @@ $.TokenList = function (input, url_or_data, settings) {
 
     // Inner function to a token to the list
     function insert_token(item) {
-        var this_token = $("<li><p>"+ item[settings.propertyToSearch] +"</p></li>")
+        var this_token = settings.tokenFormatter(item);
+        this_token = $(this_token)
           .addClass(settings.classes.token)
           .insertBefore(input_token);
 
@@ -628,6 +631,10 @@ $.TokenList = function (input, url_or_data, settings) {
     function highlight_term(value, term) {
         return value.replace(new RegExp("(?![^&;]+;)(?!<[^<>]*)(" + term + ")(?![^<>]*>)(?![^&;]+;)", "gi"), "<b>$1</b>");
     }
+    
+    function find_value_and_highlight_term(template, value, term) {
+        return template.replace(new RegExp("(?![^&;]+;)(?!<[^<>]*)(" + value + ")(?![^<>]*>)(?![^&;]+;)", "g"), highlight_term(value, term));
+    }
 
     // Populate the results dropdown with some results
     function populate_dropdown (query, results) {
@@ -646,9 +653,12 @@ $.TokenList = function (input, url_or_data, settings) {
                 .hide();
 
             $.each(results, function(index, value) {
-                var this_li = $("<li>" + highlight_term(value[settings.propertyToSearch], query) + "</li>")
-                                  .appendTo(dropdown_ul);
-
+                var this_li = settings.resultsFormatter(value);
+                
+                this_li = find_value_and_highlight_term(this_li ,value[settings.propertyToSearch], query);            
+                
+                this_li = $(this_li).appendTo(dropdown_ul);
+                
                 if(index % 2) {
                     this_li.addClass(settings.classes.dropdownItem);
                 } else {
