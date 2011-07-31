@@ -1,6 +1,6 @@
 <html>
 <head>
-    <script type="text/javascript" src="https://ajax.googleapis.com/ajax/libs/jquery/1.5.1/jquery.min.js"></script>
+    <script type="text/javascript" src="https://ajax.googleapis.com/ajax/libs/jquery/1/jquery.min.js"></script>
     <script type="text/javascript" src="src/jquery.tokeninput.js"></script>
 
     <link rel="stylesheet" href="styles/token-input.css" type="text/css" />
@@ -54,6 +54,7 @@
         </script>
     </div>
 
+	
 
     <h2 id="theme">Facebook Theme</h2>
     <div>
@@ -62,7 +63,8 @@
         <script type="text/javascript">
         $(document).ready(function() {
             $("#demo-input-facebook-theme").tokenInput("http://shell.loopj.com/tokeninput/tvshows.php", {
-                theme: "facebook"
+                theme: "facebook",
+                allowNewItems: true
             });
         });
         </script>

@@ -34,7 +34,9 @@ var DEFAULT_SETTINGS = {
     onResult: null,
     onAdd: null,
     onDelete: null,
-    idPrefix: "token-input-"
+    idPrefix: "token-input-",
+    allowNewItems: false,
+    newItemFilter: null
 };
 
 // Default classes to use when theming
@@ -114,15 +116,15 @@ $.fn.tokenInput = function (method) {
 };
 
 // TokenList class for each input
-$.TokenList = function (input, url_or_data, settings) {
+$.TokenList = function (input, url_or_data_or_function, settings) {
     //
     // Initialization
     //
 
     // Configure the data source
-    if($.type(url_or_data) === "string" || $.type(url_or_data) === "function") {
+    if($.type(url_or_data_or_function) === "string" || $.type(url_or_data_or_function) === "function") {
         // Set the url to query against
-        settings.url = url_or_data;
+        settings.url = url_or_data_or_function;
 
         // If the URL is a function, evaluate it here to do our initalization work
         var url = computeURL();
@@ -135,9 +137,11 @@ $.TokenList = function (input, url_or_data, settings) {
                 settings.crossDomain = (location.href.split(/\/+/g)[1] !== url.split(/\/+/g)[1]);
             }
         }
-    } else if(typeof(url_or_data) === "object") {
+	} else if(typeof(url_or_data_or_function) === "function") {
+		settings.sourceFunction = url_or_data_or_function;
+    } else if(typeof(url_or_data_or_function) === "object") {
         // Set the local data to search through
-        settings.local_data = url_or_data;
+        settings.local_data = url_or_data_or_function;
     }
 
     // Build class names
@@ -254,8 +258,25 @@ $.TokenList = function (input, url_or_data, settings) {
                   if(selected_dropdown_item) {
                     add_token($(selected_dropdown_item).data("tokeninput"));
                     hidden_input.change();
+
+                    return false;
+                  } else if (settings.allowNewItems) {
+                    var new_item_name = $(this).val();
+
+                    if (new_item_name.length > 0) {
+                      if (typeof(settings.newItemFilter) === "function") {
+                        var addItem = function (name) {
+                          _add_token({id:name, name:name});
+                        };
+
+                        settings.newItemFilter(addItem, new_item_name);
+                      } else {
+                        _add_token({id:new_item_name, name:new_item_name});
+                      }
+                    }
                     return false;
                   }
+
                   break;
 
                 case KEY.ESCAPE:
@@ -410,6 +431,8 @@ $.TokenList = function (input, url_or_data, settings) {
             return;
         } else {
             input_box.focus();
+            // Clear input box
+            input_box.val("");
         }
     }
 
@@ -471,6 +494,11 @@ $.TokenList = function (input, url_or_data, settings) {
 
     // Add a token to the token list based on user input
     function add_token (item) {
+        _add_token($.data(item.get(0), "tokeninput"));
+    }
+
+    // Add a token to the token list with the id and name passed as args
+    function _add_token (item) {
         var callback = settings.onAdd;
 
         // See if the token already exists and select it if we don't want duplicates
@@ -498,9 +526,6 @@ $.TokenList = function (input, url_or_data, settings) {
             insert_token(item);
             checkTokenLimit();
         }
-
-        // Clear input box
-        input_box.val("");
 
         // Don't show the help dropdown, they've got the idea
         hide_dropdown();
@@ -639,7 +664,8 @@ $.TokenList = function (input, url_or_data, settings) {
 
     // Highlight the query part of the search term
     function highlight_term(value, term) {
-        return value.replace(new RegExp("(?![^&;]+;)(?!<[^<>]*)(" + term + ")(?![^<>]*>)(?![^&;]+;)", "gi"), "<b>$1</b>");
+        var escaped = term.replace(/[-[\]{}()*+?.,\\^$|#\s]/g, "\\$&");
+        return value.replace(new RegExp("(?![^&;]+;)(?!<[^<>]*)(" + escaped + ")(?![^<>]*>)(?![^&;]+;)", "gi"), "<b>$1</b>");
     }
     
     function find_value_and_highlight_term(template, value, term) {
@@ -675,8 +701,12 @@ $.TokenList = function (input, url_or_data, settings) {
                     this_li.addClass(settings.classes.dropdownItem2);
                 }
 
-                if(index === 0) {
-                    select_dropdown_item(this_li);
+                // Select the first item, unless we allow the user to add new
+                // items.
+                if (settings.allowNewItems === false) {
+                    if(index === 0) {
+                        select_dropdown_item(this_li);
+                    }
                 }
 
                 $.data(this_li.get(0), "tokeninput", value);
@@ -774,30 +804,20 @@ $.TokenList = function (input, url_or_data, settings) {
 
                 // Attach the success callback
                 ajax_params.success = function(results) {
-                  if($.isFunction(settings.onResult)) {
-                      results = settings.onResult.call(hidden_input, results);
-                  }
-                  cache.add(cache_key, settings.jsonContainer ? results[settings.jsonContainer] : results);
-
-                  // only populate the dropdown if the results are associated with the active search query
-                  if(input_box.val().toLowerCase() === query) {
-                      populate_dropdown(query, settings.jsonContainer ? results[settings.jsonContainer] : results);
-                  }
+					handle_results(query, settings.jsonContainer ? results[settings.jsonContainer] : results);
                 };
 
                 // Make the request
                 $.ajax(ajax_params);
+			} else if(settings.sourceFunction) {
+				settings.sourceFunction(query, handle_results);
             } else if(settings.local_data) {
                 // Do the search through local data
                 var results = $.grep(settings.local_data, function (row) {
                     return row[settings.propertyToSearch].toLowerCase().indexOf(query.toLowerCase()) > -1;
                 });
 
-                if($.isFunction(settings.onResult)) {
-                    results = settings.onResult.call(hidden_input, results);
-                }
-                cache.add(cache_key, results);
-                populate_dropdown(query, results);
+                handle_results(query, results);
             }
         }
     }
@@ -810,6 +830,19 @@ $.TokenList = function (input, url_or_data, settings) {
         }
         return url;
     }
+	
+	function handle_results(query, results) {
+		if($.isFunction(settings.onResult)) {
+			results = settings.onResult.call(hidden_input, results);
+		}
+
+		cache.add(query, results);
+
+        // only populate the dropdown if the results are associated with the active search query
+        if(input_box.val().toLowerCase() === query) {
+            populate_dropdown(query, results);
+        }
+	}
 };
 
 // Really basic cache for the results
