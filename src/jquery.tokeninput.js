@@ -266,12 +266,12 @@ $.TokenList = function (input, url_or_data_or_function, settings) {
                     if (new_item_name.length > 0) {
                       if (typeof(settings.newItemFilter) === "function") {
                         var addItem = function (name) {
-                          _add_token({id:name, name:name});
+                          add_token({id:name, name:name});
                         };
 
                         settings.newItemFilter(addItem, new_item_name);
                       } else {
-                        _add_token({id:new_item_name, name:new_item_name});
+                        add_token({id:new_item_name, name:new_item_name});
                       }
                     }
                     return false;
@@ -492,13 +492,8 @@ $.TokenList = function (input, url_or_data_or_function, settings) {
         return this_token;
     }
 
-    // Add a token to the token list based on user input
+    // Add a token to the token list with the id and name passed as object
     function add_token (item) {
-        _add_token($.data(item.get(0), "tokeninput"));
-    }
-
-    // Add a token to the token list with the id and name passed as args
-    function _add_token (item) {
         var callback = settings.onAdd;
 
         // See if the token already exists and select it if we don't want duplicates
